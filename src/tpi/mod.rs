@@ -26,15 +26,6 @@ pub use self::data::*;
 pub use self::id::*;
 pub use self::primitive::{Indirection, PrimitiveKind, PrimitiveType};
 
-/// An index into either the [`TypeInformation`] or [`IdInformation`] stream.
-///
-/// [`TypeInformation`]: type.TypeInformation.html
-/// [`IdInformation`]: type.IdInformation.html
-pub trait ItemIndex:
-    Copy + Default + fmt::Debug + fmt::Display + PartialEq + PartialOrd + From<u32> + Into<u32>
-{
-}
-
 /// Zero-copy access to a PDB type or id stream.
 ///
 /// PDBs store two kinds of related streams with an identical internal structure:
@@ -373,13 +364,17 @@ where
     I: ItemIndex,
 {
     fn new(info: &'t ItemInformation<'_, I>, shift: u8) -> Self {
+        // maximum index is the highest index + 1.
         let count = info.header.maximum_index - info.header.minimum_index;
-        let shifted_count = (count >> shift) as usize;
 
-        let mut positions = Vec::with_capacity(shifted_count);
+        let round_base = (1 << shift) - 1;
+        let shifted_count = ((count + round_base) & !round_base) >> shift;
+        let mut positions = Vec::with_capacity(shifted_count as usize);
 
-        // add record zero, which is identical regardless of shift
-        positions.push(info.header.header_size);
+        if shifted_count > 0 {
+            // add record zero, which is identical regardless of shift
+            positions.push(info.header.header_size);
+        }
 
         Self {
             buffer: info.stream.parse_buffer(),
@@ -411,7 +406,10 @@ where
     /// can be useful to check whether iteration is required.
     #[inline]
     pub fn max_index(&self) -> I {
-        I::from((self.positions.len() << self.shift) as u32 + self.minimum_index - 1)
+        I::from(match self.positions.len() {
+            0 => 0, // special case for an empty type index
+            len => (len << self.shift) as u32 + self.minimum_index - 1,
+        })
     }
 
     /// Update this `ItemFinder` based on the current position of a [`ItemIter`].
@@ -530,8 +528,6 @@ where
     }
 }
 
-impl ItemIndex for TypeIndex {}
-
 /// Zero-copy access to the PDB type stream (TPI).
 ///
 /// This stream exposes types, the variants of which are enumerated by [`TypeData`]. See
@@ -578,8 +574,6 @@ impl<'t> Item<'t, TypeIndex> {
         }
     }
 }
-
-impl ItemIndex for IdIndex {}
 
 /// Zero-copy access to the PDB type stream (TPI).
 ///
