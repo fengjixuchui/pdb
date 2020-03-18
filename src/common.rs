@@ -110,46 +110,10 @@ pub enum Error {
 }
 
 impl std::error::Error for Error {
-    fn description(&self) -> &str {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match *self {
-            Error::UnrecognizedFileFormat => {
-                "The input data was not recognized as a MSF (PDB) file"
-            }
-            Error::InvalidPageSize(_) => "The MSF header specifies an invalid page size",
-            Error::PageReferenceOutOfRange(_) => "MSF referred to page number out of range",
-            Error::StreamNotFound(_) => "The requested stream is not stored in this file",
-            Error::StreamNameNotFound => "The requested stream is not stored in this file",
-            Error::InvalidStreamLength(_) => "Stream has an invalid length or alignment",
-            Error::IoError(ref e) => e.description(),
-            Error::UnexpectedEof => "Unexpectedly reached end of input",
-            Error::UnimplementedFeature(_) => "Unimplemented PDB feature",
-            Error::GlobalSymbolsNotFound => "The global symbol stream is missing",
-            Error::SymbolTooShort => "A symbol record's length value was impossibly small",
-            Error::UnimplementedSymbolKind(_) => {
-                "Support for symbols of this kind is not implemented"
-            }
-            Error::InvalidTypeInformationHeader(_) => "The type information header was invalid",
-            Error::TypeTooShort => "A type record's length value was impossibly small",
-            Error::TypeNotFound(_) => "Type not found",
-            Error::TypeNotIndexed(_, _) => "Type not indexed",
-            Error::UnimplementedTypeKind(_) => "Support for types of this kind is not implemented",
-            Error::NotACrossModuleRef(_) => "Type index is not a cross module reference",
-            Error::CrossModuleRefNotFound(_) => "Cross module reference not found in imports",
-            Error::UnexpectedNumericPrefix(_) => {
-                "Variable-length numeric parsing encountered an unexpected prefix"
-            }
-            Error::AddressMapNotFound => {
-                "Required mapping for virtual addresses (OMAP) was not found"
-            }
-            Error::ScrollError(ref e) => e.description(),
-            Error::UnimplementedDebugSubsection(_) => {
-                "Debug module subsection of this kind is not implemented"
-            }
-            Error::UnimplementedFileChecksumKind(_) => "Unknown source file checksum kind",
-            Error::InvalidFileChecksumOffset(_) => "Invalid source file checksum offset",
-            Error::LinesNotFound => "Line information not found for a module",
-            Error::InvalidCompressedAnnotation => "Invalid compressed annoation",
-            Error::UnknownBinaryAnnotation(_) => "Unknown binary annotation",
+            Self::IoError(ref error) => Some(error),
+            _ => None,
         }
     }
 }
@@ -250,9 +214,8 @@ macro_rules! impl_pread {
     ($type:ty) => {
         impl<'a> TryFromCtx<'a, Endian> for $type {
             type Error = scroll::Error;
-            type Size = usize;
 
-            fn try_from_ctx(this: &'a [u8], le: Endian) -> scroll::Result<(Self, Self::Size)> {
+            fn try_from_ctx(this: &'a [u8], le: Endian) -> scroll::Result<(Self, usize)> {
                 TryFromCtx::try_from_ctx(this, le).map(|(i, s)| (Self(i), s))
             }
         }
@@ -556,9 +519,8 @@ pub struct PdbInternalSectionOffset {
 
 impl<'t> TryFromCtx<'t, Endian> for PdbInternalSectionOffset {
     type Error = scroll::Error;
-    type Size = usize;
 
-    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, Self::Size)> {
+    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, usize)> {
         let mut offset = 0;
         let data = PdbInternalSectionOffset {
             offset: this.gread_with(&mut offset, le)?,
@@ -827,7 +789,7 @@ impl<'b> ParseBuffer<'b> {
     /// Parse an object that implements `Pread`.
     pub fn parse<T>(&mut self) -> Result<T>
     where
-        T: TryFromCtx<'b, Endian, [u8], Size = usize>,
+        T: TryFromCtx<'b, Endian, [u8]>,
         T::Error: From<scroll::Error>,
         Error: From<T::Error>,
     {
@@ -837,7 +799,7 @@ impl<'b> ParseBuffer<'b> {
     /// Parse an object that implements `Pread` with the given context.
     pub fn parse_with<T, C>(&mut self, ctx: C) -> Result<T>
     where
-        T: TryFromCtx<'b, C, [u8], Size = usize>,
+        T: TryFromCtx<'b, C, [u8]>,
         T::Error: From<scroll::Error>,
         Error: From<T::Error>,
         C: Copy,
@@ -944,9 +906,8 @@ impl fmt::Display for Variant {
 
 impl<'a> TryFromCtx<'a, Endian> for Variant {
     type Error = Error;
-    type Size = usize;
 
-    fn try_from_ctx(this: &'a [u8], le: Endian) -> Result<(Self, Self::Size)> {
+    fn try_from_ctx(this: &'a [u8], le: Endian) -> Result<(Self, usize)> {
         let mut offset = 0;
 
         let variant = match this.gread_with(&mut offset, le)? {

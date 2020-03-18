@@ -56,9 +56,8 @@ struct DebugSubsectionHeader {
 
 impl<'t> TryFromCtx<'t, Endian> for DebugSubsectionHeader {
     type Error = scroll::Error;
-    type Size = usize;
 
-    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, Self::Size)> {
+    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, usize)> {
         let mut offset = 0;
         let data = DebugSubsectionHeader {
             kind: this.gread_with(&mut offset, le)?,
@@ -125,9 +124,8 @@ struct DebugInlineeLinesHeader {
 
 impl<'t> TryFromCtx<'t, Endian> for DebugInlineeLinesHeader {
     type Error = scroll::Error;
-    type Size = usize;
 
-    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, Self::Size)> {
+    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, usize)> {
         let mut offset = 0;
         let data = DebugInlineeLinesHeader {
             signature: this.gread_with(&mut offset, le)?,
@@ -156,9 +154,8 @@ impl<'a> InlineeSourceLine<'a> {
 
 impl<'a> TryFromCtx<'a, DebugInlineeLinesHeader> for InlineeSourceLine<'a> {
     type Error = Error;
-    type Size = usize;
 
-    fn try_from_ctx(this: &'a [u8], header: DebugInlineeLinesHeader) -> Result<(Self, Self::Size)> {
+    fn try_from_ctx(this: &'a [u8], header: DebugInlineeLinesHeader) -> Result<(Self, usize)> {
         let mut buf = ParseBuffer::from(this);
         let inlinee = buf.parse()?;
         let file_id = buf.parse()?;
@@ -239,9 +236,8 @@ struct DebugLinesHeader {
 
 impl<'t> TryFromCtx<'t, Endian> for DebugLinesHeader {
     type Error = scroll::Error;
-    type Size = usize;
 
-    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, Self::Size)> {
+    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, usize)> {
         let mut offset = 0;
         let data = DebugLinesHeader {
             offset: this.gread_with(&mut offset, le)?,
@@ -306,9 +302,8 @@ struct LineNumberHeader {
 
 impl<'t> TryFromCtx<'t, Endian> for LineNumberHeader {
     type Error = scroll::Error;
-    type Size = usize;
 
-    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, Self::Size)> {
+    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, usize)> {
         let mut offset = 0;
         let data = LineNumberHeader {
             offset: this.gread_with(&mut offset, le)?,
@@ -429,9 +424,8 @@ struct ColumnNumberEntry {
 
 impl<'t> TryFromCtx<'t, Endian> for ColumnNumberEntry {
     type Error = scroll::Error;
-    type Size = usize;
 
-    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, Self::Size)> {
+    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, usize)> {
         let mut offset = 0;
         let data = ColumnNumberEntry {
             start_column: this.gread_with(&mut offset, le)?,
@@ -478,9 +472,8 @@ struct DebugLinesBlockHeader {
 
 impl<'t> TryFromCtx<'t, Endian> for DebugLinesBlockHeader {
     type Error = scroll::Error;
-    type Size = usize;
 
-    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, Self::Size)> {
+    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, usize)> {
         let mut offset = 0;
         let data = DebugLinesBlockHeader {
             file_index: this.gread_with(&mut offset, le)?,
@@ -609,9 +602,8 @@ struct FileChecksumHeader {
 
 impl<'t> TryFromCtx<'t, Endian> for FileChecksumHeader {
     type Error = scroll::Error;
-    type Size = usize;
 
-    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, Self::Size)> {
+    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, usize)> {
         let mut offset = 0;
         let data = FileChecksumHeader {
             name_offset: this.gread_with(&mut offset, le)?,
@@ -772,7 +764,7 @@ impl<'a> CrossModuleImports<'a> {
     /// Loads `CrossModuleImports` from the debug subsections data.
     pub(crate) fn parse(data: &'a [u8]) -> Result<Self> {
         let import_data = DebugSubsectionIterator::new(data)
-            .find(|sec| sec.kind == DebugSubsectionKind::CrossScopeImports)?
+            .find(|sec| Ok(sec.kind == DebugSubsectionKind::CrossScopeImports))?
             .map(|sec| sec.data);
 
         match import_data {
@@ -841,9 +833,8 @@ struct RawCrossScopeExport {
 
 impl<'t> TryFromCtx<'t, Endian> for RawCrossScopeExport {
     type Error = scroll::Error;
-    type Size = usize;
 
-    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, Self::Size)> {
+    fn try_from_ctx(this: &'t [u8], le: Endian) -> scroll::Result<(Self, usize)> {
         let mut offset = 0;
         let data = RawCrossScopeExport {
             local: this.gread_with(&mut offset, le)?,
@@ -943,7 +934,7 @@ impl CrossModuleExports {
 
     pub(crate) fn parse(data: &[u8]) -> Result<Self> {
         let export_data = DebugSubsectionIterator::new(data)
-            .find(|sec| sec.kind == DebugSubsectionKind::CrossScopeExports)?
+            .find(|sec| Ok(sec.kind == DebugSubsectionKind::CrossScopeExports))?
             .map(|sec| sec.data);
 
         match export_data {
@@ -1167,16 +1158,17 @@ impl<'a> FallibleIterator for InlineeLineIterator<'a> {
                 continue;
             }
 
+            let line_offset = self.code_offset + self.code_offset_base;
             if let Some(ref mut last_info) = self.last_info {
                 if last_info.length.is_none() && last_info.kind == self.line_kind {
-                    last_info.length = Some(self.code_offset.offset - self.code_offset_base);
+                    last_info.length = Some(line_offset.offset - last_info.offset.offset);
                 }
             }
 
             let line_info = LineInfo {
                 kind: self.line_kind,
                 file_index: self.file_index,
-                offset: self.code_offset + self.code_offset_base,
+                offset: line_offset,
                 length: self.code_length,
                 line_start: self.line,
                 line_end: self.line + self.line_length,
@@ -1231,7 +1223,7 @@ pub struct InlineeIterator<'a> {
 impl<'a> InlineeIterator<'a> {
     pub(crate) fn parse(data: &'a [u8]) -> Result<Self> {
         let inlinee_data = DebugSubsectionIterator::new(data)
-            .find(|sec| sec.kind == DebugSubsectionKind::InlineeLines)?
+            .find(|sec| Ok(sec.kind == DebugSubsectionKind::InlineeLines))?
             .map(|sec| sec.data);
 
         let inlinee_lines = match inlinee_data {
@@ -1287,7 +1279,7 @@ pub struct LineProgram<'a> {
 impl<'a> LineProgram<'a> {
     pub(crate) fn parse(data: &'a [u8]) -> Result<Self> {
         let checksums_data = DebugSubsectionIterator::new(data)
-            .find(|sec| sec.kind == DebugSubsectionKind::FileChecksums)?
+            .find(|sec| Ok(sec.kind == DebugSubsectionKind::FileChecksums))?
             .map(|sec| sec.data);
 
         let file_checksums = match checksums_data {
@@ -1315,9 +1307,9 @@ impl<'a> LineProgram<'a> {
         // quickly advance to the first (and only) subsection that matches that offset. Since they
         // are non-overlapping and not empty, we can bail out at the first match.
         let section = DebugSubsectionIterator::new(self.data)
-            .filter(|section| section.kind == DebugSubsectionKind::Lines)
-            .and_then(|section| DebugLinesSubsection::parse(section.data))
-            .find(|lines_section| lines_section.header.offset == offset);
+            .filter(|section| Ok(section.kind == DebugSubsectionKind::Lines))
+            .map(|section| DebugLinesSubsection::parse(section.data))
+            .find(|lines_section| Ok(lines_section.header.offset == offset));
 
         match section {
             Ok(Some(section)) => LineIterator {
@@ -1506,6 +1498,90 @@ mod tests {
                 file_index: FileIndex(0x270),
                 line_start: 341,
                 line_end: 342,
+                column_start: None,
+                column_end: None,
+                kind: LineInfoKind::Statement,
+            },
+        ];
+
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_inlinee_lines_length() {
+        // Obtained from xul.pdb:
+        // https://symbols.mozilla.org/xul.pdb/5DCA9FFE1E8BC7FE4C4C44205044422E1/xul.pd_
+        //
+        // 1. Rename to `xul.pdb.cab` and extract with `cabextract`
+        // 2. Get procedure at SymbolIndex(0x3e3c7f4)
+        // 3. Get inlinee   at SymbolIndex(0x3e51b04)
+
+        let inline_site = InlineSiteSymbol {
+            parent: Some(SymbolIndex(0x03e5_14dc)),
+            end: SymbolIndex(0x03e5_1bd0),
+            inlinee: IdIndex(0xeb476),
+            invocations: None,
+            annotations: BinaryAnnotations::new(&[6, 38, 3, 186, 32, 11, 71, 11, 36, 4, 5, 0]),
+        };
+
+        // Binary annotations:
+        //   ChangeLineOffset(19),
+        //   ChangeCodeOffset(14880),
+        //   ChangeCodeOffsetAndLineOffset(7, 2),
+        //   ChangeCodeOffsetAndLineOffset(4, 1),
+        //   ChangeCodeLength(5),
+
+        let inlinee_line = InlineeSourceLine {
+            inlinee: IdIndex(0xeb476),
+            file_id: FileIndex(0x590),
+            line: 499,
+            extra_files: &[],
+        };
+
+        let parent_offset = PdbInternalSectionOffset {
+            section: 0x1,
+            offset: 0x0453_f100,
+        };
+
+        let iter = InlineeLineIterator::new(parent_offset, &inline_site, inlinee_line);
+        let lines: Vec<_> = iter.collect().expect("collect inlinee lines");
+
+        let expected = [
+            LineInfo {
+                offset: PdbInternalSectionOffset {
+                    section: 0x1,
+                    offset: 0x0454_2b20,
+                },
+                length: Some(7),
+                file_index: FileIndex(0x590),
+                line_start: 518,
+                line_end: 519,
+                column_start: None,
+                column_end: None,
+                kind: LineInfoKind::Statement,
+            },
+            LineInfo {
+                offset: PdbInternalSectionOffset {
+                    section: 0x1,
+                    offset: 0x0454_2b27,
+                },
+                length: Some(4),
+                file_index: FileIndex(0x590),
+                line_start: 520,
+                line_end: 521,
+                column_start: None,
+                column_end: None,
+                kind: LineInfoKind::Statement,
+            },
+            LineInfo {
+                offset: PdbInternalSectionOffset {
+                    section: 0x1,
+                    offset: 0x0454_2b2b,
+                },
+                length: Some(5),
+                file_index: FileIndex(0x590),
+                line_start: 521,
+                line_end: 522,
                 column_start: None,
                 column_end: None,
                 kind: LineInfoKind::Statement,
